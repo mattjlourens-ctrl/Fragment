@@ -2,22 +2,21 @@
 
 import { useRef, useCallback } from "react";
 
-interface Bullet {
+export interface Fragment {
   id: string;
   text: string;
-  depth: number;
 }
 
 interface FragmentEditorProps {
-  bullets: Bullet[];
-  onChange: (bullets: Bullet[]) => void;
+  fragments: Fragment[];
+  onChange: (fragments: Fragment[]) => void;
 }
 
-function generateId() {
+function generateId(): string {
   return Math.random().toString(36).slice(2, 9);
 }
 
-export default function FragmentEditor({ bullets, onChange }: FragmentEditorProps) {
+export default function FragmentEditor({ fragments, onChange }: FragmentEditorProps) {
   const refs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const focusLine = useCallback((id: string, atEnd = true) => {
@@ -25,109 +24,119 @@ export default function FragmentEditor({ bullets, onChange }: FragmentEditorProp
       const el = refs.current.get(id);
       if (!el) return;
       el.focus();
-      const range = document.createRange();
       const sel = window.getSelection();
-      const target = el.childNodes[0] ?? el;
-      const offset = atEnd ? (target as Text).length ?? 0 : 0;
+      const range = document.createRange();
+      const node = el.firstChild ?? el;
+      const offset = atEnd ? ((node as Text).length ?? 0) : 0;
       try {
-        range.setStart(target, offset);
+        range.setStart(node, offset);
         range.collapse(true);
         sel?.removeAllRanges();
         sel?.addRange(range);
       } catch {
-        // node may be empty
+        // empty node — ignore
       }
     });
   }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>, index: number) => {
-      const bullet = bullets[index];
+      const frag = fragments[index];
 
       if (e.key === "Enter") {
         e.preventDefault();
-        const newBullet: Bullet = { id: generateId(), text: "", depth: bullet.depth };
-        const next = [...bullets];
-        next.splice(index + 1, 0, newBullet);
+        const newFrag: Fragment = { id: generateId(), text: "" };
+        const next = [...fragments];
+        next.splice(index + 1, 0, newFrag);
         onChange(next);
-        focusLine(newBullet.id, false);
+        focusLine(newFrag.id, false);
       }
 
-      if (e.key === "Tab") {
+      if (e.key === "Backspace" && frag.text === "" && fragments.length > 1) {
         e.preventDefault();
-        const next = [...bullets];
-        if (e.shiftKey) {
-          next[index] = { ...bullet, depth: Math.max(0, bullet.depth - 1) };
-        } else {
-          next[index] = { ...bullet, depth: Math.min(4, bullet.depth + 1) };
-        }
+        const next = fragments.filter((_, i) => i !== index);
         onChange(next);
-        focusLine(bullet.id);
-      }
-
-      if (e.key === "Backspace" && bullet.text === "" && bullets.length > 1) {
-        e.preventDefault();
-        const next = bullets.filter((_, i) => i !== index);
-        onChange(next);
-        const prevId = bullets[index - 1]?.id ?? bullets[index + 1]?.id;
-        if (prevId) focusLine(prevId);
+        const targetId = fragments[index - 1]?.id ?? fragments[index + 1]?.id;
+        if (targetId) focusLine(targetId);
       }
 
       if (e.key === "ArrowUp" && index > 0) {
         e.preventDefault();
-        focusLine(bullets[index - 1].id);
+        focusLine(fragments[index - 1].id);
       }
 
-      if (e.key === "ArrowDown" && index < bullets.length - 1) {
+      if (e.key === "ArrowDown" && index < fragments.length - 1) {
         e.preventDefault();
-        focusLine(bullets[index + 1].id);
+        focusLine(fragments[index + 1].id);
       }
     },
-    [bullets, onChange, focusLine]
+    [fragments, onChange, focusLine]
   );
 
   const handleInput = useCallback(
-    (e: React.FormEvent<HTMLDivElement>, index: number) => {
-      const next = [...bullets];
-      next[index] = { ...bullets[index], text: (e.target as HTMLDivElement).innerText };
+    (e: React.SyntheticEvent<HTMLDivElement>, index: number) => {
+      const next = [...fragments];
+      next[index] = {
+        ...fragments[index],
+        text: (e.target as HTMLDivElement).innerText,
+      };
       onChange(next);
     },
-    [bullets, onChange]
+    [fragments, onChange]
   );
 
   return (
-    <div className="flex flex-col h-full px-10 py-8 overflow-y-auto">
-      <div className="w-full max-w-2xl mx-auto space-y-0.5">
-        {bullets.map((bullet, index) => (
-          <div
-            key={bullet.id}
-            className="flex items-start gap-2.5 group"
-            style={{ paddingLeft: `${bullet.depth * 24}px` }}
-          >
-            <span className="mt-[3px] text-[#4F7CAC]/60 text-sm select-none shrink-0 leading-6">
-              •
-            </span>
-            <div
-              ref={(el) => {
-                if (el) refs.current.set(bullet.id, el);
-                else refs.current.delete(bullet.id);
-              }}
-              contentEditable
-              suppressContentEditableWarning
-              spellCheck={false}
-              autoCorrect="off"
-              autoCapitalize="off"
-              data-gramm="false"
-              onKeyDown={(e) => handleKeyDown(e, index)}
-              onInput={(e) => handleInput(e, index)}
-              className="flex-1 text-[#E6E6E6] text-[15px] leading-6 outline-none
-                empty:before:content-[attr(data-placeholder)] empty:before:text-[#9CA3AF]/40
-                focus:empty:before:text-[#9CA3AF]/20 break-words min-h-[24px] cursor-text
-                caret-[#4F7CAC]"
-              data-placeholder={index === 0 ? "Start writing..." : ""}
-            />
-          </div>
-        ))}
+    <div className="flex flex-col h-full overflow-y-auto px-10 py-10">
+      <div className="w-full max-w-lg mx-auto flex flex-col gap-8">
+
+        {/* Label */}
+        <div className="space-y-1">
+          <p className="text-[#9CA3AF] text-sm leading-relaxed">
+            Enter your ideas — one fragment per line.
+          </p>
+        </div>
+
+        {/* Bullets */}
+        <div className="space-y-1.5">
+          {fragments.map((frag, index) => (
+            <div key={frag.id} className="flex items-start gap-3">
+              <span className="text-[#4F7CAC]/50 select-none text-sm leading-6 mt-px shrink-0">
+                •
+              </span>
+              <div
+                ref={(el) => {
+                  if (el) refs.current.set(frag.id, el);
+                  else refs.current.delete(frag.id);
+                }}
+                contentEditable
+                suppressContentEditableWarning
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                data-gramm="false"
+                data-placeholder={index === 0 ? "e.g. burning field imagery..." : ""}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                onInput={(e) => handleInput(e, index)}
+                className="
+                  flex-1 min-h-[24px] text-[15px] leading-6 text-[#E6E6E6]
+                  outline-none caret-[#4F7CAC] break-words
+                  empty:before:content-[attr(data-placeholder)]
+                  empty:before:text-[#9CA3AF]/30
+                "
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Fragment count */}
+        <p className="text-[11px] text-[#9CA3AF]/40 tabular-nums">
+          {fragments.filter((f) => f.text.trim()).length === 0
+            ? "No ideas yet"
+            : `${fragments.filter((f) => f.text.trim()).length} ${
+                fragments.filter((f) => f.text.trim()).length === 1 ? "idea" : "ideas"
+              } captured`}
+        </p>
+
       </div>
     </div>
   );
