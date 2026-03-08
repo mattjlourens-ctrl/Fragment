@@ -1,5 +1,6 @@
 Fragment Product Principles
 
+Fragment uses an Idea Memory Engine to guide writing by referencing the user’s own stored ideas rather than generating new arguments.
 
 Purpose
 Fragment is an assistive writing tool designed to reduce idea-to-text friction while maintaining academic integrity.
