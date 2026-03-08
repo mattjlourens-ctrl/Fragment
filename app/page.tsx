@@ -1,26 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import TopBar from "@/components/TopBar";
+import FragmentEditor from "@/components/FragmentEditor";
+import OutlinePanel from "@/components/OutlinePanel";
+
+interface Bullet {
+  id: string;
+  text: string;
+  depth: number;
+}
+
+const initialBullets: Bullet[] = [
+  { id: "init-1", text: "", depth: 0 },
+];
 
 export default function Home() {
-  const [text, setText] = useState("");
+  const [bullets, setBullets] = useState<Bullet[]>(initialBullets);
 
   return (
-    <main className="min-h-screen bg-[#0F1115] text-white flex items-center justify-center">
-      <div className="w-full max-w-2xl space-y-4">
-        <h1 className="text-3xl font-semibold">Fragment</h1>
+    <div className="flex flex-col h-screen bg-[#0F1115] overflow-hidden">
+      <TopBar onOrganize={() => {}} />
 
-        <textarea
-          className="w-full h-64 p-4 bg-zinc-900 border border-zinc-700 rounded-md outline-none"
-          placeholder="• dump your idea fragments here..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Editor — 70% */}
+        <main className="flex-[7] overflow-hidden">
+          <FragmentEditor bullets={bullets} onChange={setBullets} />
+        </main>
 
-        <button className="px-4 py-2 bg-blue-600 rounded-md hover:bg-blue-500">
-          Organize My Thoughts
-        </button>
+        {/* Outline — 30% */}
+        <div className="flex-[3] overflow-hidden">
+          <OutlinePanel bullets={bullets} />
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
